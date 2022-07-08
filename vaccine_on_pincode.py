@@ -1,80 +1,168 @@
-
-""" 
-Developer: aipython on [29-05-2021]
-website: www.aipython.in
-
-Sends Notifications on a Telegram channel , whenever the Vaccine(s) is available at the given PINCODE 
-"""
-
+import telebot
+from telebot import types 
+from turtle import update
+from bs4 import BeautifulSoup
+from time import sleep, time
 import requests
-from datetime import datetime, timedelta
-import time
-import pytz
-# from os import environ
+import json
+import sys
+import os
 
-# Define all the constants
-time_interval = 10 # (in seconds) Specify the frequency of code execution
-PINCODE = "110028"
+from telegram import InlineKeyboardMarkup
+print("Bot Is Started")
+token = "5502185335:AAHt-PkXQWAlusaXdVIgBvlc0YqGmYT8OxM"
+sudo_id = ''
+bot = telebot.TeleBot(token)
+ch ="titantrex"
+msg = """مرحباً، هذا البوت يقوم بتحميل القصص من السناب شات بالكامل. كل ماعليك هو ققط ادخال اسم المستخدم.
+🍔 لإستخدام هذه الخدمة يجب عليك الإنضمام الى هذه القناة - : @titantrex """
 
-tele_auth_token = "1901486933:AAHed-MGB8hVwrmK4E-gvKTVd63XNkoxvPE" # Authentication token provided by Telegram bot
-tel_group_id = "test_Aug_vaccine"          # Telegram group name
-IST = pytz.timezone('Asia/Kolkata')        # Indian Standard Time - Timezone
-header = {'User-Agent': 'Chrome/84.0.4147.105 Safari/537.36'} # Header for using cowin api
+msg2 = """
+● طريقة استخدام البوت
+● قم بإرسال اسم المستخدم وسيقوم البوت بتحميل القصة الخاصة به بالكامل
+● البوت يدعم تطبيق سناب شات فقط
+● يجب ان يكون الحساب لديه ملف تعريفي عام
+● يعمل في جميع الأوقات."""
+def gituser(id):
+    result = False
+    file = open ("users.txt",'r')
+    for line in file:
+        if line.strip()==id:
+            result = True
+    file.close()
+    return result
 
-def update_timestamp_send_Request(PINCODE):
-    raw_TS = datetime.now(IST) + timedelta(days=1)      # Tomorrows date
-    tomorrow_date = raw_TS.strftime("%d-%m-%Y")         # Formatted Tomorrow's date
-    today_date = datetime.now(IST).strftime("%d-%m-%Y") #Current Date
-    curr_time = (datetime.now().strftime("%H:%M:%S"))   #Current time
-    request_link = f"https://cdn-api.co-vin.in/api/v2/appointment/sessions/public/calendarByPin?pincode={PINCODE}&date={tomorrow_date}"
-    response = requests.get(request_link, headers = header)
-    raw_JSON = response.json()
-    return raw_JSON, today_date, curr_time
 
 
-def get_availability_data():
-    slot_found_45 = False
-    slot_found_18 = False
-    
-    raw_JSON, today_date, curr_time = update_timestamp_send_Request(PINCODE)
-    print ("raw_JSON :" , raw_JSON)
-    
-    for cent in raw_JSON['centers']:
-        for sess in cent['sessions']:
-            sess_date = sess['date']
-            if sess['min_age_limit'] == 45 and sess['available_capacity'] > 0:
-                slot_found_45 =  True
-                msg = f"For age 45+ [Vaccine Available] at {PINCODE} on {sess_date}\n\tCenter : {cent['name']}\n\tVaccine: {sess['vaccine']}\n\tDose_1: {sess['available_capacity_dose1']}\n\tDose_2: {sess['available_capacity_dose2']}"
-                send_msg_on_telegram(msg)
-                print (f"INFO:[{curr_time}] Vaccine Found for 45+ at {PINCODE} >> Details sent on Telegram")
-                
-            elif sess['min_age_limit'] == 18 and sess['available_capacity'] > 0:
-                slot_found_18 =  True
-                msg = f"For age 18+ [Vaccine Available] at {PINCODE} on {sess_date}\n\tCenter : {cent['name']}\n\tVaccine: {sess['vaccine']}\n\tDose_1: {sess['available_capacity_dose1']}\n\tDose_2: {sess['available_capacity_dose2']}"
-                send_msg_on_telegram(msg)
-                print (f"INFO: [{curr_time}] Vaccine Found for 18+ at {PINCODE} >> Details sent on Telegram")
-    
-    if slot_found_45 == False and slot_found_18 == False:
-        print (f"INFO: [{today_date}-{curr_time}] Vaccine NOT-available for 45+ at {PINCODE}")
-        print (f"INFO: [{today_date}-{curr_time}] Vaccine NOT-available for 18+ at {PINCODE}")
-    elif slot_found_45 == False:
-        print (f"INFO: [{today_date}-{curr_time}] Vaccine NOT-available for 45+ at {PINCODE}")
+keyborad = types.InlineKeyboardMarkup()
+button1 = types.InlineKeyboardButton(text= "انضممت" , callback_data="click1")
+keyborad.add(button1)
+def start_markup():
+    markup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
+    chat = types.KeyboardButton(text="ادخل اسم المستخدم-",)
+    chat2 = types.KeyboardButton(text="⚙️ طريقة استخدام البوت",)
+    markup.add(chat,chat2)
+
+    return markup 
+@bot.message_handler(commands=["start"])
+def start(message):
+    if message.chat.type == 'private':
+      idu = message.from_user.id
+      f = open("users.txt",'a')
+      if(not gituser(str(idu))):
+        f.write("{}\n".format(idu))
+        f.close()  
+    id = message.from_user.id
+    url = f"https://api.telegram.org/bot{token}/getchatmember?chat_id=@{ch}&user_id={id}"
+    req = requests.get(url)
+    if id == sudo_id or 'member' in req.text or 'creator' in req.text or 'administartor' in req.text:
+        bot.send_message(message.chat.id, "🏡الرئيسية" ,reply_markup=start_markup())
     else:
-        print (f"INFO: [{today_date}-{curr_time}] Vaccine NOT-available for 18+ at {PINCODE}")
+       bot.send_message(message.chat.id, "{}".format(msg),reply_markup=keyborad)
+@bot.message_handler(commands=["users"])
+def get(message):
     
+    file = open("users.txt",'r')
+    lines = 0
+    for line in file:
+        words = line.split(" ")
+        lines += len(words)
+    file.close()
+    bot.send_message(message.chat.id,"users : {}".format(lines))
+@bot.callback_query_handler(func=lambda message: True)
+def callback_query(call):
+        if call.data == "click1":
+            id = call.from_user.id
+            url = f"https://api.telegram.org/bot{token}/getchatmember?chat_id=@{ch}&user_id={id}"
+            req = requests.get(url)
+            if id == sudo_id or 'member' in req.text or 'creator' in req.text or 'administartor' in req.text:
+                bot.edit_message_text(chat_id=call.message.chat.id,message_id=call.message.message_id,text="تم التفعيل ",)
+                bot.answer_callback_query(call.id, "تم التفعيل ✅ .")
+            if id == sudo_id or 'member' in req.text or 'creator' in req.text or 'administartor' in req.text:
+                bot.send_message(call.message.chat.id, "🏡الرئيسية" ,reply_markup=start_markup())
+@bot.message_handler()
+def re(m):
+                id = m.from_user.id
+                url = f"https://api.telegram.org/bot{token}/getchatmember?chat_id=@{ch}&user_id={id}"
+                req = requests.get(url)
+                if id == sudo_id or 'member' in req.text or 'creator' in req.text or 'administartor' in req.text:
+                    
+                    if m.text == "ادخل اسم المستخدم-":
+                        bot.send_message(m.chat.id,"قم بإرسال اسم المستخدم الآن")
+                    elif m.text == "⚙️ طريقة استخدام البوت":
+                        bot.send_message(m.chat.id,msg2 , reply_markup=start_markup())
+                    elif m.text == str(m.text) not in  "ادخل اسم المستخدم-":
+                            bot.send_message(m.chat.id,"جاري التاكد من المستخدم ...")
+                            userr=m.text
+                            url = "https://story.snapchat.com/@"
+                            mix = url + str(userr)
+                            headers = {
+                                'User-Agent': '"Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:94.0) Gecko/20100101 Firefox/94.0',
+                            }
 
-def send_msg_on_telegram(msg):
-    telegram_api_url = f"https://api.telegram.org/bot{tele_auth_token}/sendMessage?chat_id=@{tel_group_id}&text={msg}"
-    tel_resp = requests.get(telegram_api_url)
+                            r = requests.get(mix, headers=headers)
 
-    if tel_resp.status_code == 200:
-        print ("Notification has been sent on Telegram")
-    else:
-        print ("Could not send Message")
+                            if r.ok:
+                                bot.send_message(m.chat.id,'تم العثور علئ المستخدم')
 
 
-if __name__ == "__main__":    
-    while True:
-        get_availability_data()
-        time.sleep(time_interval)
+                            else:
+                                bot.send_message(m.chat.id,'لام يتم العثور علئ الحساب')
+                                sys.exit(1)
 
+                            soup = BeautifulSoup(r.content, "html.parser")
+                            #print(soup)
+
+                            snaps = soup.find(id="__NEXT_DATA__").string.strip()
+
+
+                            data = json.loads(snaps)
+
+                            try:
+                                bitmoji = data["props"]["pageProps"]["userProfile"]["publicProfileInfo"]["snapcodeImageUrl"]
+                                bio = data["props"]["pageProps"]["userProfile"]["publicProfileInfo"]["bio"]
+
+                            except KeyError:
+                                bitmoji = data["props"]["pageProps"]["userProfile"]["userInfo"]["snapcodeImageUrl"]
+                                bio = data["props"]["pageProps"]["userProfile"]["userInfo"]["displayName"]
+                                bot.send_message(m.chat.id,'الحساب خاص')
+                                sys.exit(1)
+
+
+
+
+
+                            try:
+                                for i in data["props"]["pageProps"]["story"]["snapList"]:
+
+                                    file_url = i["snapUrls"]["mediaUrl"]
+
+                                    if file_url == "":
+                                        continue
+
+                                    r = requests.get(file_url, stream=True, headers=headers)
+                                    unl = r.url
+
+                                    if "image" in r.headers['Content-Type']:
+                                        file_name = r.headers['ETag'].replace('"', '') + ".jpeg"
+                            
+                                        bot.send_photo(m.chat.id,unl)
+                                    elif "video" in r.headers['Content-Type']:
+                                        file_name = r.headers['ETag'].replace('"', '') + ".mp4"
+
+                                        bot.send_video(m.chat.id,unl)
+
+                                        continue
+                                
+                                    sleep(0.3)	
+
+
+                            except KeyError:
+                                bot.send_message(m.chat.id,'لام يتم التنزيل مقاطع او صور اليوم')
+                            else:
+                                bot.send_message(m.chat.id,'تم التنزيل')
+                                bot.send_message(m.chat.id,"تابعنا على حسابنا في سناب شات: sr2ip https://www.snapchat.com/add/sr2ip")
+
+                        
+
+bot.infinity_polling()
